@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Progress</title>
+    <style>
+        /* CSS class to hide the progress elements */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Progress</h1>
+    
+    <!-- Task Name Input -->
+    <label for="task-name">Task Name:</label>
+    <input type="text" id="task-name" placeholder="Enter task name">
+    
+    <!-- Number Input Spinner -->
+    <label for="task-number">Task Duration in Seconds:</label>
+    <input type="number" id="task-number" value="100" min="1">
+    
+    <!-- Create Task Button -->
+    <button id="create-task-button">Create Task</button>
+    
+    <!-- Container div for progress elements -->
+    <div id="progress-container" class="hidden">
+        <progress id="progress-bar" max="100"></progress>
+        <p id="progress-text"></p>
+    </div>
+
+    <script>
+        let eventSource = null; // Initialize EventSource variable
+
+        const progressBar = document.getElementById("progress-bar");
+        const progressText = document.getElementById("progress-text");
+        const taskNameInput = document.getElementById("task-name");
+        const taskNumberInput = document.getElementById("task-number");
+        const createTaskButton = document.getElementById("create-task-button");
+        const progressContainer = document.getElementById("progress-container"); // Container div
+
+        // Function to create a task
+        const createTask = async () => {
+            const taskName = taskNameInput.value;
+            const taskNumber = parseInt(taskNumberInput.value);
+
+            if (!taskName) {
+                alert("Please enter a task name.");
+                return;
+            }
+
+            if (isNaN(taskNumber) || taskNumber < 1) {
+                alert("Please enter a valid positive number for 'Number' field.");
+                return;
+            }
+
+            try {
+                const response = await fetch("/tasks", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ "name": taskName, "number": taskNumber }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const task_id = data.task_id; // Replace "task_id" with the actual key from the response JSON
+                    alert("Task created successfully!");
+
+                    // Update the EventSource URL with the task_id
+                    const eventSourceURL = `/tasks/${task_id}/progress`;
+
+                    // Create the EventSource with the updated URL
+                    eventSource = new EventSource(eventSourceURL);
+
+                    eventSource.onmessage = (event) => {
+                        const progress = parseInt(event.data);
+
+                        if (!isNaN(progress)) {
+                            progressBar.value = progress;
+                            progressText.textContent = `Elapsed: ${progress} seconds`;
+
+                            // Show the progress bar and text when data is received
+                            progressBar.setAttribute("max", taskNumber)
+                            progressContainer.classList.remove("hidden");
+
+                            // Check if the maximum number has been reached
+                            if (progress >= taskNumber) {
+                                // Close the EventSource
+                                eventSource.close();
+
+                                // Disable the "Create Task" button
+                                createTaskButton.disabled = true;
+                            }
+                        } else {
+                            progressText.textContent = "Task not found or progress not available";
+                        }
+                    };
+
+                    eventSource.onerror = (error) => {
+                        // Handle errors (e.g., task not found or server disconnects)
+                        console.error("Error:", error);
+                    };
+                } else {
+                    alert("Failed to create task. Please try again.");
+                }
+            } catch (error) {
+                console.error("Error creating task:", error);
+            }
+        };
+
+        // Event listener for the Create Task button
+        createTaskButton.addEventListener("click", createTask);
+    </script>
+</body>
+</html>
