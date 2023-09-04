@@ -6,6 +6,8 @@ An exploration of [Server-sent Events (SSE)](https://dev.to/karanpratapsingh/sys
 
 Python environment required (see [pyenv](https://github.com/pyenv/pyenv#readme) install) then `pip install -r requirements.txt` to get the (few) required libraries.
 
+This service also stores data in a local instance of MongoDB.  You will need to either [Install MongoDB locally](https://www.mongodb.com/docs/manual/installation/) or edit the source code line where the connection is made to point to an existing MongoDB instance.
+
 ### Running
 
 In a terminal window, at the command prompt launch the service with `./tasks.py` (or `python tasks.py` if that doesn't work).  As with most FastAPI apps, the endpoints served are available at http://localhost:8000/docs.  
