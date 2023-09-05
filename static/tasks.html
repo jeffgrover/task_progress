@@ -84,6 +84,7 @@
                             // Show the progress bar and text when data is received
                             progressBar.setAttribute("max", taskNumber)
                             progressContainer.classList.remove("hidden");
+                            createTaskButton.classList.add("hidden");
 
                             // Check if the maximum number has been reached
                             if (progress >= taskNumber) {
