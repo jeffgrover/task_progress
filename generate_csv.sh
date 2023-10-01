@@ -3,8 +3,8 @@ curl -X 'POST' \
   -H 'accept: */*' \
   -H 'Content-Type: application/json' \
   -d '{
-  "end_date": "2024-03-01",
-  "num_entities": 1000,
+  "end_date": "2023-08-01",
+  "num_entities": 100000,
   "start_date": "2022-01-01",
   "test_date": "2023-02-01",
   "values": [

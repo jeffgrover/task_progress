@@ -111,18 +111,6 @@ def distribute_data(csv_file, operation, entities, values, num_buckets):
 
     return bucket_labels, counts
 
-    # # Create a distribution chart using matplotlib
-    # plt.figure(figsize=(10, 6))
-    # plt.bar(bucket_labels, counts, align='center', alpha=0.7)labels
-    # plt.xlabel('Buckets')
-    # plt.ylabel('Count')labels
-    # plt.title('Distribution Chart')
-    # plt.xticks(rotation=45)
-    # plt.tight_layout()
-
-    # # Display or save the plot
-    # plt.show()
-
 
 def generate_site_names(num_sites: int):
     capitals_and_major_cities = [

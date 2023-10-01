@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from io import StringIO
+from io import StringIO, BytesIO
 from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +11,8 @@ from uvicorn import run
 from uuid import uuid4
 from asyncio import sleep
 from csv_data import CSV, Buckets, Operations, distribute_data, generate_csv
+import matplotlib.pyplot as plt
+
 
 app = FastAPI()
 
@@ -152,6 +154,33 @@ def distribute_csv_data(file: UploadFile, operation: Operations, entities: str, 
     labels, values = distribute_data(buffer, operation, entities, values, num_buckets)
     response = Buckets(names=list(labels), counts=list(values))
     return response
+
+
+@app.post(
+    "/hist/png",
+    description="Return an image of a histogram distribution for a sample .csv data",
+    tags=["csv data"],
+    responses={200: {"content": {"image/png": {}}}, 400: {}},
+)
+def histogram_of_csv_data(file: UploadFile, operation: Operations, entities: str, values :str, num_buckets: int = 100):
+    contents = file.file.read()
+    buffer = StringIO(contents.decode('utf-8'))
+    labels, values = distribute_data(buffer, operation, entities, values, num_buckets)
+
+    # Create a distribution chart using matplotlib
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, values, align='center', alpha=0.7)
+    plt.xlabel('Buckets')
+    plt.ylabel('Count')
+    plt.title('Distribution Chart')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    buffer=BytesIO()
+    plt.savefig(buffer)
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="image/png")
+
 
 if __name__ == "__main__":
     run("tasks:app", host="127.0.0.1", port=8000, reload=True)
