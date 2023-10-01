@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import StreamingResponse, FileResponse
+from io import StringIO
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from datetime import datetime
@@ -9,6 +10,7 @@ from typing import List, Optional
 from uvicorn import run
 from uuid import uuid4
 from asyncio import sleep
+from csv_data import CSV, Buckets, Operations, distribute_data, generate_csv
 
 app = FastAPI()
 
@@ -51,17 +53,17 @@ def send_sse_event(task_id: str, progress: int):
     print(f"SSE Event for Task {task_id}: Progress {progress}", flush=True)
 
 
-@app.get("/")
+@app.get("/", tags=["static content"])
 async def read_index():
     return FileResponse('static/tasks.html')
 
 
-@app.get("/favicon.ico")
+@app.get("/favicon.ico", tags=["static content"])
 async def read_favicon():
     return FileResponse('static/task.png')
 
 
-@app.post("/tasks")
+@app.post("/tasks", tags=["tasks"])
 async def create_task(task_data: dict, bg_task: BackgroundTasks):
     name = task_data.get("name")
     number = task_data.get("number")
@@ -79,21 +81,21 @@ async def create_task(task_data: dict, bg_task: BackgroundTasks):
     return {"task_id": task_id}
 
 
-@app.get("/tasks")
+@app.get("/tasks", tags=["tasks"])
 async def get_tasks():
     tasks = list(collection.find({}, {"_id": 0, "id": 1, "name": 1}))
     return tasks
 
 
-@app.get("/tasks/{task_id}")
+@app.get("/tasks/{task_id}", tags=["tasks"])
 async def get_task(task_id: str):
     task = collection.find_one({"id": task_id}, {"_id": 0})
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return task
+    return 
 
 
-@app.get("/tasks/{task_id}/progress")
+@app.get("/tasks/{task_id}/progress", tags=["tasks"])
 async def task_progress_sse(task_id: str):
     async def sse_stream():
         max_number_reached = False
@@ -117,6 +119,46 @@ async def task_progress_sse(task_id: str):
 
     return StreamingResponse(sse_stream(), media_type="text/event-stream")
 
+
+#-----------------------------------------------------------------------------------------------------------
+@app.post(
+    "/csv",
+    description="Generate synthetic .csv data",
+    tags=["csv data"],
+    response_class=FileResponse,
+    responses={400: {}},
+)
+def generate_sample_csv(csv_params: CSV):
+
+    # TODO:  Write CSV directly to StreamingResponse in generator code
+    # Something like this:
+    # response = StreamingResponse(iter([stream.getvalue()]),
+    #                              media_type="text/csv"
+    #                             )
+    # response.headers["Content-Disposition"] = "attachment; filename=export.csv"
+    # return response
+    # Debug:
+    # return StreamingResponse(iter(StringIO("RECEIVED:\n\n" + json.dumps(sample, default=str, indent=2))))
+
+    content = generate_csv(csv_params)
+    response = StreamingResponse(content, media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=sample-data.csv"
+    return response
+
+
+@app.post(
+    "/hist",
+    description="Compute histogram distribution on sample .csv data",
+    tags=["csv data"],
+    response_model=Buckets,
+    responses={400: {}},
+)
+def distribute_csv_data(file: UploadFile, operation: Operations, entities: str, values :str, num_buckets: int = 100):
+    contents = file.file.read()
+    buffer = StringIO(contents.decode('utf-8'))
+    labels, values = distribute_data(buffer, operation, entities, values, num_buckets)
+    response = Buckets(names=list(labels), counts=list(values))
+    return response
 
 if __name__ == "__main__":
    run("tasks:app", host="127.0.0.1", port=8000, reload=True)

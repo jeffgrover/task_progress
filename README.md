@@ -4,7 +4,7 @@ An exploration of [Server-sent Events (SSE)](https://dev.to/karanpratapsingh/sys
 
 ### Installation
 
-Python environment required (see [pyenv](https://github.com/pyenv/pyenv#readme) install) then `pip install -r requirements.txt` to get the (few) required libraries.
+Python environment required: (See [pyenv](https://github.com/pyenv/pyenv#readme) install) then `pip install -r requirements.txt` to get the (few) required libraries.
 
 This service also stores data in a local instance of MongoDB.  You will need to either [Install MongoDB locally](https://www.mongodb.com/docs/manual/installation/) or edit the source code line where the connection is made to point to an existing MongoDB instance.
 
