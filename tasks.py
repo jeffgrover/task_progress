@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from uvicorn import run
 from uuid import uuid4
 from asyncio import sleep
@@ -24,9 +24,9 @@ collection = db["tasks"]
 
 
 class TaskModel:
-    def __init__(self, name: str, number: int, id: Optional[str] = None, start: Optional[datetime] = None,
+    def __init__(self, name: str, number: int, uuid: Optional[str] = None, start: Optional[datetime] = None,
                  end: Optional[datetime] = None, progress: Optional[int] = None):
-        self.id = id
+        self.id = uuid
         self.name = name
         self.number = number
         self.start = start
@@ -34,23 +34,15 @@ class TaskModel:
         self.progress = progress
 
 
+# This "worker" function is run as a BackGroundTask, updating DB with progress
 async def count_to_number(task_id: str, number: int, bg_task: BackgroundTasks):
-    start_time = datetime.now()
     for i in range(1, number + 1):
         # Update progress in MongoDB
         collection.update_one({"id": task_id}, {"$set": {"progress": i}})
-        # Send progress to the browser via SSE (Server Sent Events)
-        bg_task.add_task(send_sse_event, task_id, i)
         await sleep(1)
     end_time = datetime.now()
     # Update the end timestamp in MongoDB
     collection.update_one({"id": task_id}, {"$set": {"end": end_time}})
-
-
-def send_sse_event(task_id: str, progress: int):
-    # In a real application, you would use a library like aiohttp to send SSE events to the browser.
-    # For simplicity, we'll print the events here.
-    print(f"SSE Event for Task {task_id}: Progress {progress}", flush=True)
 
 
 @app.get("/", tags=["static content"])
@@ -72,7 +64,7 @@ async def create_task(task_data: dict, bg_task: BackgroundTasks):
     task_id = str(uuid4())
 
     # Create a new task document in MongoDB
-    task = TaskModel(name=name, number=number, id=task_id, start=datetime.now())
+    task = TaskModel(name=name, number=number, uuid=task_id, start=datetime.now())
     collection.insert_one(task.__dict__)
 
     # Start the background task to count
@@ -95,6 +87,7 @@ async def get_task(task_id: str):
     return 
 
 
+# This generator function (note: yield()) produces server-sent events by polling db
 @app.get("/tasks/{task_id}/progress", tags=["tasks"])
 async def task_progress_sse(task_id: str):
     async def sse_stream():
@@ -161,4 +154,4 @@ def distribute_csv_data(file: UploadFile, operation: Operations, entities: str, 
     return response
 
 if __name__ == "__main__":
-   run("tasks:app", host="127.0.0.1", port=8000, reload=True)
+    run("tasks:app", host="127.0.0.1", port=8000, reload=True)
